@@ -1,0 +1,59 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load dataset
+data = pd.read_csv("ad_10000records.csv")
+
+# Initialize variables
+arms = data["Ad Topic Line"].unique()
+n_arms = len(arms)
+epsilon = 0.1
+
+counts = np.zeros(n_arms)
+values = np.zeros(n_arms)
+rewards = []
+
+# Epsilon-Greedy Algorithm
+for i, row in data.iterrows():
+
+    # Exploration vs Exploitation
+    if np.random.rand() < epsilon:
+        arm_index = np.random.randint(n_arms)   # Explore
+    else:
+        arm_index = np.argmax(values)           # Exploit
+
+    # Get reward
+    reward = row["Clicked on Ad"]
+
+    # Update values
+    counts[arm_index] += 1
+    values[arm_index] += (reward - values[arm_index]) / counts[arm_index]
+
+    rewards.append(reward)
+
+# Total reward
+print("Total clicks collected:", sum(rewards))
+
+# Plot graphs
+plt.figure(figsize=(12, 5))
+
+# Cumulative reward plot
+plt.subplot(1, 2, 1)
+plt.plot(np.cumsum(rewards))
+plt.xlabel("Rounds")
+plt.ylabel("Cumulative Clicks")
+plt.title("Cumulative Reward (Clicks) over Time")
+
+# Top 10 selected ads
+top_indices = np.argsort(-counts)[:10]
+
+plt.subplot(1, 2, 2)
+plt.bar(range(10), counts[top_indices], tick_label=arms[top_indices])
+plt.xlabel("Ad Topics")
+plt.ylabel("Times Selected")
+plt.title("Top 10 Ad Topics Selected")
+plt.xticks(rotation=45, ha="right")
+
+plt.tight_layout()
+plt.show()
