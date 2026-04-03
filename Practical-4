@@ -1,0 +1,17 @@
+import pandas as pd import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+df_housing = pd.read_csv('/content/sample_data/california_housing_train.csv') print("First 5 rows of the dataset:")
+display(df_housing.head()) print("\nDataFrame Info:") df_housing.info()
+feature_columns = ['longitude', 'latitude']
+X_housing = df_housing[feature_columns].values
+print(f"\nShape of features for clustering (X_housing): {X_housing.shape}")
+kmeans_housing = KMeans(n_clusters=n_clusters_housing, random_state=42, n_init=10)
+kmeans_housing.fit(X_housing) y_kmeans_pred_housing = kmeans_housing.labels_
+print("K-Means predicted cluster assignments for the first 10 data points:", y_kmeans_pred_housing[:10])
+plt.figure(figsize=(10, 8))
+plt.scatter(X_housing[:, 0], X_housing[:, 1], c=y_kmeans_pred_housing, s=10, cmap='viridis', alpha=0.6)
+centers_housing = kmeans_housing.cluster_centers_ plt.scatter(centers_housing[:, 0], centers_housing[:, 1], c='red', s=200, alpha=0.9, marker='X', label='Cluster Centers')
+plt.title(f'K-Means Clustering Result on California Housing (K={n_clusters_housing})')
+plt.xlabel('Longitude') plt.ylabel('Latitude') plt.colorbar(label='Predicted Cluster') plt.legend()
+plt.grid(True) plt.show()
