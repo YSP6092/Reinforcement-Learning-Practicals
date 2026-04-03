@@ -1,0 +1,140 @@
+import numpy as np
+import pandas as pd
+import io
+import matplotlib.pyplot as plt
+
+
+print("Generated 'grid_config.csv' file with GridWorld configuration.")
+
+class GridWorld:
+    def __init__(self, size=4, start=(0, 0), goal=(3, 3), holes=None):
+        self.size = size
+        self.start = start
+        self.goal = goal
+        self.holes = holes if holes is not None else []
+        self.state = self.start
+
+    @staticmethod
+    def from_csv_config(csv_file_path):
+        df_config = pd.read_csv(csv_file_path)
+
+        size = 4
+        start = (0, 0)
+        goal = (3, 3)
+        holes = []
+
+        for index, row in df_config.iterrows():
+            setting = row['setting']
+
+            if setting == 'size':
+                size = int(row['value1'])
+            elif setting == 'start':
+                start = (int(row['value1']), int(row['value2']))
+            elif setting == 'goal':
+                goal = (int(row['value1']), int(row['value2']))
+            elif setting == 'hole':
+                holes.append((int(row['value1']), int(row['value2'])))
+
+        return GridWorld(size=size, start=start, goal=goal, holes=holes)
+
+    def reset(self):
+        self.state = self.start
+        return self.state
+
+    def step(self, action):
+        row, col = self.state
+
+        if action == 0:
+            row = max(0, row - 1)
+        elif action == 1:
+            row = min(self.size - 1, row + 1)
+        elif action == 2:
+            col = max(0, col - 1)
+        elif action == 3:
+            col = min(self.size - 1, col + 1)
+
+        self.state = (row, col)
+
+        reward = -0.1
+        done = False
+
+        if self.state == self.goal:
+            reward = 100
+            done = True
+        elif self.state in self.holes:
+            reward = -100
+            done = True
+
+        return self.state, reward, done
+
+    def render(self):
+        grid = np.full((self.size, self.size), '.')
+        for r, c in self.holes:
+            grid[r, c] = 'H'
+        grid[self.goal] = 'G'
+        grid[self.state] = 'A'
+        for row in grid:
+            print(' '.join(row))
+        print('---\n')
+
+def state_to_index(state_tuple, size):
+    return state_tuple[0] * size + state_tuple[1]
+
+env = GridWorld.from_csv_config('grid_config.csv')
+env.render()
+
+num_states = env.size * env.size
+num_actions = 4
+q_table = np.zeros((num_states, num_actions))
+
+learning_rate = 0.8
+discount_factor = 0.95
+epsilon = 1.0
+max_epsilon = 1.0
+min_epsilon = 0.01
+decay_rate = 0.005
+
+num_episodes = 1000
+
+print(f"Q-table shape: {q_table.shape}")
+
+rewards_per_episode = []
+
+for episode in range(num_episodes):
+    state_tuple = env.reset()
+    state = state_to_index(state_tuple, env.size)
+    done = False
+    current_episode_reward = 0
+
+    while not done:
+        if np.random.uniform(0, 1) < epsilon:
+            action = np.random.randint(num_actions)
+        else:
+            action = np.argmax(q_table[state, :])
+
+        new_state_tuple, reward, done = env.step(action)
+        new_state = state_to_index(new_state_tuple, env.size)
+
+        q_table[state, action] = q_table[state, action] + learning_rate * (
+            reward + discount_factor * np.max(q_table[new_state, :]) - q_table[state, action]
+        )
+
+        state = new_state
+        current_episode_reward += reward
+
+    epsilon = min_epsilon + (max_epsilon - min_epsilon) * np.exp(-decay_rate * episode)
+    rewards_per_episode.append(current_episode_reward)
+
+    if episode % 100 == 0:
+        print(f"Episode {episode}: Total Reward = {current_episode_reward:.2f}, Epsilon = {epsilon:.2f}")
+
+print("\nTraining complete!")
+print("Final Q-table:\n", q_table)
+
+plt.figure(figsize=(12, 6))
+plt.plot(pd.Series(rewards_per_episode).rolling(window=50).mean())
+plt.xlabel('Episode')
+plt.ylabel('Total Reward (Rolling Average)')
+plt.title('Q-Learning Training Progress: Total Reward per Episode (Rolling Average)')
+plt.grid(True)
+plt.show()
